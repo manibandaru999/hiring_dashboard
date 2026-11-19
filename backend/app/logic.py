@@ -67,7 +67,36 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     end=pd.Series(np.where(d['Closed Flag'],last,today), index=d.index); end=pd.to_datetime(end,errors='coerce')
     d['Candidate Aging Days']=safe_days(end,d['Profile Received Date']); d['Days From Profile To L1']=safe_days(d['L1 Date'],d['Profile Received Date'])
     d['Days From L1 To L2']=safe_days(d['L2 Date'],d['L1 Date']); d['Days From L2 To Client L1']=safe_days(d['Client L1 Date'],d['L2 Date']); d['Days From Client L1 To Client L2']=safe_days(d['Client L2 Date'],d['Client L1 Date']); d['Total Hiring Cycle Time']=safe_days(pd.Series(last,index=d.index),d['Profile Received Date'])
-    d['Current Pipeline Stage']=d.apply(pipeline,axis=1); d['Progression Level']=d.apply(progression,axis=1); d['Notice Period Bucket']=d['Notice Period'].apply(notice_bucket)
+    # Ordered vectorized conditions preserve the precedence of pipeline() and progression().
+    overall = d['Overall Status'].str.lower()
+    l1_reject = d['L1 Status'].str.lower().isin(['rejected','reject','failed','fail','not cleared'])
+    l2_reject = d['L2 Status'].str.lower().isin(['rejected','reject','failed','fail','not cleared'])
+    cl1_reject = d['Client L1 Status'].str.lower().isin(['rejected','reject','failed','fail','not cleared'])
+    cl2_reject = d['Client L2 Status'].str.lower().isin(['rejected','reject','failed','fail','not cleared'])
+    d['Current Pipeline Stage'] = np.select([
+        overall.eq('selected'), overall.eq('rejected'), overall.eq('declined'),
+        overall.isin(['on hold','hold']),
+        ~d['L1 Completed Flag'], l1_reject,
+        d['L1 Cleared Flag'] & ~d['L2 Completed Flag'], l2_reject,
+        d['L2 Cleared Flag'] & ~d['Client L1 Completed Flag'], cl1_reject,
+        d['Client L1 Cleared Flag'] & ~d['Client L2 Completed Flag'], cl2_reject,
+        d['Client L2 Completed Flag'] & overall.eq('')
+    ], [
+        'Closed - Selected', 'Closed - Rejected', 'Closed - Declined',
+        'Closed - On Hold', 'Waiting for L1', 'Closed - Rejected at L1',
+        'Cleared L1 - Waiting for L2', 'Closed - Rejected at L2',
+        'Cleared L2 - Waiting for Client L1', 'Closed - Rejected at Client L1',
+        'Cleared Client L1 - Waiting for Client L2', 'Closed - Rejected at Client L2',
+        'Client L2 Completed - Waiting for Final Decision'
+    ], default='In Progress / Needs Review')
+    d['Progression Level'] = np.select([
+        d['Client L2 Completed Flag'], d['Client L1 Completed Flag'],
+        d['L2 Completed Flag'], d['L1 Completed Flag']
+    ], [
+        'Progressed to Client L2', 'Progressed to Client L1',
+        'Progressed to L2', 'Progressed to L1'
+    ], default='Profile Received Only')
+    d['Notice Period Bucket']=d['Notice Period'].apply(notice_bucket)
     d['CTC Gap']=d['Expected CTC']-d['Current CTC']; d['Hike %']=np.where((d['Current CTC'].fillna(0)>0)&d['Expected CTC'].notna(),((d['Expected CTC']-d['Current CTC'])/d['Current CTC'])*100,np.nan)
     d['SLA Bucket']=pd.cut(d['Candidate Aging Days'].fillna(0),bins=[-1,7,15,30,60,999999],labels=['0-7 Days','8-15 Days','16-30 Days','31-60 Days','60+ Days'])
     d['Candidate ID']=d.index.astype(str)
