@@ -3004,34 +3004,38 @@ export default function App() {
       .catch(e => setError(`Backend API server is not reachable: ${e.message}`));
   }, []);
 
-  // Fetch data on filters update
+  // Debounce rapid filter changes and cancel obsolete network requests.
   useEffect(() => {
     if (!filters.startDate && !filters.endDate) return;
     setLoading(true);
-    
     const params = cleanParams(filters);
-    
+    const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(() => {
-      // Only request the expensive datasets required by the active page.
       const needsHierarchy = page === 'Hierarchy';
       const needsInterviews = ['Overview', 'Rejections', 'Interviews'].includes(page);
       Promise.all([
-        apiGet('/api/dashboard', params),
-        needsHierarchy ? apiGet('/api/hierarchy', params) : Promise.resolve(null),
-        needsInterviews ? apiGet('/api/interviews', params) : Promise.resolve(null)
+        apiGet('/api/dashboard', params, controller.signal),
+        needsHierarchy ? apiGet('/api/hierarchy', params, controller.signal) : Promise.resolve(null),
+        needsInterviews ? apiGet('/api/interviews', params, controller.signal) : Promise.resolve(null)
       ])
         .then(([dash, hier, inter]) => {
           if (cancelled) return;
           setDashboardData(dash);
           if (needsHierarchy) setHierarchyData(hier || []);
           if (needsInterviews) setInterviewsData(inter || []);
-          setError(null);
+          setError('');
         })
-        .catch(e => { if (!cancelled) setError(`Data fetch error: ${e.message}`); })
+        .catch(e => {
+          if (!cancelled && e.name !== 'AbortError') setError(`Data fetch error: ${e.message}`);
+        })
         .finally(() => { if (!cancelled) setLoading(false); });
-    }, 180);
-    return () => { cancelled = true; clearTimeout(timer); };
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [JSON.stringify(filters), page]);
 
   // Drilldown triggers
