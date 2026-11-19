@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+from functools import lru_cache
 from typing import Any
 import numpy as np
 import pandas as pd
@@ -72,13 +73,19 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     d['Candidate ID']=d.index.astype(str)
     return d
 
+@lru_cache(maxsize=2)
+def _load_data_cached(path: str, modified_ns: int, size: int):
+    """Parse the Excel workbook once per file version, not once per request."""
+    return clean(pd.read_excel(path, sheet_name=0))
+
 def load_data():
     p=SOURCE_DIR/DEFAULT_FILE_NAME
     if not p.exists():
         files=sorted(SOURCE_DIR.glob('*.xlsx'))
         if not files: raise FileNotFoundError(f'Place {DEFAULT_FILE_NAME} in {SOURCE_DIR}')
         p=files[0]
-    return clean(pd.read_excel(p,sheet_name=0))
+    stat=p.stat()
+    return _load_data_cached(str(p.resolve()), stat.st_mtime_ns, stat.st_size)
 
 def serialize(df):
     out=df.copy()
