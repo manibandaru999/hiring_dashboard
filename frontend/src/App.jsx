@@ -3013,23 +3013,26 @@ export default function App() {
     
     let cancelled = false;
     const timer = setTimeout(() => {
+      // Only request the expensive datasets required by the active page.
+      const needsHierarchy = page === 'Hierarchy';
+      const needsInterviews = ['Overview', 'Rejections', 'Interviews'].includes(page);
       Promise.all([
         apiGet('/api/dashboard', params),
-        apiGet('/api/hierarchy', params),
-        apiGet('/api/interviews', params)
+        needsHierarchy ? apiGet('/api/hierarchy', params) : Promise.resolve(null),
+        needsInterviews ? apiGet('/api/interviews', params) : Promise.resolve(null)
       ])
         .then(([dash, hier, inter]) => {
           if (cancelled) return;
           setDashboardData(dash);
-          setHierarchyData(hier || []);
-          setInterviewsData(inter || []);
+          if (needsHierarchy) setHierarchyData(hier || []);
+          if (needsInterviews) setInterviewsData(inter || []);
           setError(null);
         })
         .catch(e => { if (!cancelled) setError(`Data fetch error: ${e.message}`); })
         .finally(() => { if (!cancelled) setLoading(false); });
     }, 180);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [JSON.stringify(filters)]);
+  }, [JSON.stringify(filters), page]);
 
   // Drilldown triggers
   function openDrill(title, rows) {
