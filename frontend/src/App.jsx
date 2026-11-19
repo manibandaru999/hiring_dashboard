@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiGet } from './api';
 
 const C = {
-  blue: '#3b82f6',
+  blue: '#c8102e',
   green: '#10b981',
   orange: '#f59e0b',
-  red: '#f43f5e',
-  purple: '#8b5cf6',
-  teal: '#14b8a6',
-  indigo: '#6366f1',
+  red: '#d72b43',
+  purple: '#79516b',
+  teal: '#178f91',
+  indigo: '#9e2441',
   slate: '#64748b'
 };
 
@@ -3011,19 +3011,24 @@ export default function App() {
     
     const params = cleanParams(filters);
     
-    Promise.all([
-      apiGet('/api/dashboard', params),
-      apiGet('/api/hierarchy', params),
-      apiGet('/api/interviews', params)
-    ])
-      .then(([dash, hier, inter]) => {
-        setDashboardData(dash);
-        setHierarchyData(hier || []);
-        setInterviewsData(inter || []);
-      })
-      .catch(e => setError(`Data fetch error: ${e.message}`))
-      .finally(() => setLoading(false));
-      
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      Promise.all([
+        apiGet('/api/dashboard', params),
+        apiGet('/api/hierarchy', params),
+        apiGet('/api/interviews', params)
+      ])
+        .then(([dash, hier, inter]) => {
+          if (cancelled) return;
+          setDashboardData(dash);
+          setHierarchyData(hier || []);
+          setInterviewsData(inter || []);
+          setError(null);
+        })
+        .catch(e => { if (!cancelled) setError(`Data fetch error: ${e.message}`); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 180);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [JSON.stringify(filters)]);
 
   // Drilldown triggers
