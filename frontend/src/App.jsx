@@ -135,7 +135,7 @@ function Header({ page, canBack, onBack }) {
       </div>
       <div className="header-actions">
         {canBack && <button className="btn" onClick={onBack}>← Back</button>}
-        <span className="page-chip">Hiring Overview</span>
+        <span className="page-chip">Production Mode</span>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ function Filters({ options, filters, setFilters }) {
         <div className="filters-toggle-title">
           <span>🔍</span> Filter Command Panel
         </div>
-        <button type="button" className="filters-expand-btn" aria-expanded={!collapsed} onClick={e => { e.stopPropagation(); setCollapsed(!collapsed); }}>{collapsed ? 'Expand Filters ▾' : 'Collapse Filters ▴'}</button>
+        <div>{collapsed ? '展开 ▼' : '折叠 ▲'}</div>
       </div>
       
       {!collapsed && (

@@ -1,7 +1,5 @@
 from __future__ import annotations
 from typing import Optional
-import math
-import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,25 +9,6 @@ from .logic import (
     panel_summary, filters, is_clear, is_reject, is_hold, brs_analytics,
     get_hierarchy_analytics, get_interviews_list
 )
-
-def json_safe(value):
-    """Replace non-finite Pandas/NumPy values with JSON null recursively."""
-    if isinstance(value, dict):
-        return {key: json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [json_safe(item) for item in value]
-    if value is None or value is pd.NaT or value is pd.NA:
-        return None
-    if isinstance(value, (float, np.floating)):
-        return None if not math.isfinite(float(value)) else float(value)
-    if isinstance(value, np.integer):
-        return int(value)
-    if isinstance(value, np.bool_):
-        return bool(value)
-    if isinstance(value, pd.Timestamp):
-        return None if pd.isna(value) else value.isoformat()
-    return value
-
 
 app=FastAPI(title='Recruit Hiring Dashboard API')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
@@ -53,7 +32,7 @@ def dashboard(
     notice:Optional[str]=None,vp:Optional[str]=None,project:Optional[str]=None,ta:Optional[str]=None
 ):
     df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,stage,notice,vp,project,ta))
-    return json_safe({
+    return {
         'metrics':core(df),
         'rounds':round_summary(df),
         'progression':progression_summary(df),
@@ -64,7 +43,7 @@ def dashboard(
         'panels':panel_summary(df),
         'brs':brs_analytics(df),
         'candidates':serialize(df.sort_values(['Candidate Aging Days','Profile Received Date'],ascending=[False,False]).head(150))
-    })
+    }
 
 @app.get('/api/hierarchy')
 def hierarchy_endpoint(
@@ -73,7 +52,7 @@ def hierarchy_endpoint(
     notice:Optional[str]=None,vp:Optional[str]=None,project:Optional[str]=None,ta:Optional[str]=None
 ):
     df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,stage,notice,vp,project,ta))
-    return json_safe(get_hierarchy_analytics(df))
+    return get_hierarchy_analytics(df)
 
 @app.get('/api/interviews')
 def interviews_endpoint(
@@ -82,7 +61,7 @@ def interviews_endpoint(
     notice:Optional[str]=None,vp:Optional[str]=None,project:Optional[str]=None,ta:Optional[str]=None
 ):
     df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,stage,notice,vp,project,ta))
-    return json_safe(get_interviews_list(df))
+    return get_interviews_list(df)
 
 @app.get('/api/candidates')
 def candidates(
@@ -98,13 +77,13 @@ def candidates(
         for c in cols:
             if c in df.columns: mask=mask|df[c].astype(str).str.lower().str.contains(s,na=False)
         df=df[mask]
-    return json_safe(serialize(df.sort_values('Candidate Aging Days',ascending=False)))
+    return serialize(df.sort_values('Candidate Aging Days',ascending=False))
 
 @app.get('/api/candidates/{candidate_id}')
 def candidate_detail(candidate_id:str):
     df=load_data(); m=df[df['Candidate ID'].astype(str)==str(candidate_id)]
     if m.empty: m=df[df['Candidate Name'].astype(str)==str(candidate_id)]
-    return {'error':'Candidate not found'} if m.empty else json_safe(serialize(m)[0])
+    return {'error':'Candidate not found'} if m.empty else serialize(m)[0]
 
 @app.get('/api/drilldown/round')
 def drill_round(
@@ -119,7 +98,7 @@ def drill_round(
     elif outcome=='Hold': out=df[base & df[status].apply(is_hold)]
     elif outcome=='Pending': out=df[base & ~df[status].apply(is_clear) & ~df[status].apply(is_reject) & ~df[status].apply(is_hold)]
     else: out=df[base]
-    return json_safe(serialize(out))
+    return serialize(out)
 
 @app.get('/api/drilldown/stage')
 def drill_stage(
@@ -127,12 +106,12 @@ def drill_stage(
     role:Optional[str]=None,director:Optional[str]=None,manager:Optional[str]=None,
     notice:Optional[str]=None,vp:Optional[str]=None,project:Optional[str]=None,ta:Optional[str]=None
 ):
-    df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,None,notice,vp,project,ta)); return json_safe(serialize(df[df['Current Pipeline Stage']==stageValue]))
+    df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,None,notice,vp,project,ta)); return serialize(df[df['Current Pipeline Stage']==stageValue])
 
 @app.get('/api/drilldown/director')
-def drill_director(directorName:str): return json_safe(serialize(load_data().query('Director == @directorName')))
+def drill_director(directorName:str): return serialize(load_data().query('Director == @directorName'))
 @app.get('/api/drilldown/manager')
-def drill_manager(managerName:str): return json_safe(serialize(load_data().query('Manager == @managerName')))
+def drill_manager(managerName:str): return serialize(load_data().query('Manager == @managerName'))
 
 @app.get('/api/brs')
 def brs(
@@ -141,4 +120,5 @@ def brs(
     notice:Optional[str]=None,vp:Optional[str]=None,project:Optional[str]=None,ta:Optional[str]=None
 ):
     df=apply_filters(load_data(),qdict(startDate,endDate,role,director,manager,stage,notice,vp,project,ta))
-    return json_safe(brs_analytics(df))
+    return brs_analytics(df)
+

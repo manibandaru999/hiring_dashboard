@@ -16,8 +16,8 @@
   --text-light: #94a3b8;
 
   /* Theme Accents */
-  --color-primary: #dc2626;      /* Classic red theme */
-  --color-primary-hover: #b91c1c;
+  --color-primary: #3b82f6;      /* Blue */
+  --color-primary-hover: #2563eb;
   --color-success: #10b981;      /* Emerald */
   --color-success-bg: #ecfdf5;
   --color-warning: #f59e0b;      /* Amber */
@@ -95,13 +95,13 @@ body {
   width: 42px;
   height: 42px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-teal));
   display: grid;
   place-items: center;
   font-family: var(--font-heading);
   font-weight: 800;
   font-size: 18px;
-  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.35);
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.35);
 }
 
 .brand-title {
@@ -153,8 +153,8 @@ body {
 }
 
 .nav-btn.active {
-  background: rgba(220, 38, 38, 0.15);
-  border-color: rgba(220, 38, 38, 0.3);
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
   color: #ffffff;
   font-weight: 600;
   box-shadow: inset 3px 0 0 var(--color-primary);
@@ -205,8 +205,8 @@ body {
   display: inline-flex;
   align-self: flex-start;
   color: var(--color-primary);
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.15);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 10px;
